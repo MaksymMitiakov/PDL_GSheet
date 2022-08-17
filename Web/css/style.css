@@ -1,0 +1,82 @@
+body {
+	margin: 0;
+}
+
+.input-area {
+	margin: 10px;
+}
+
+.input-area label {
+	display: inline-block;
+	text-align: right;
+}
+
+.input-area input[type=button] {
+	width: 100px;
+}
+
+.input-area label[for='pdl_api_key'] {
+	width: 150px;
+}
+
+.input-area #pdl_api_key {
+	width: 400px;
+}
+
+.input-area label[for='gsheet_id'] {
+	width: 150px;
+}
+
+.input-area #gsheet_id {
+	width: 400px;
+}
+
+.input-area label[for=sheet_name] {
+	width: 150px;
+}
+
+.input-area #sheet_name {
+	width: 100px;
+	margin-right: 10px;
+}
+
+.input-area #column_range_start
+, .input-area #column_range_end
+, .input-area #first_row {
+	width: 20px;
+}
+
+#valid_mobile, #valid_email {
+	margin-left: 50px;
+}
+
+.input-area #column_range_end {
+	margin-right: 10px;
+}
+
+div.content {
+	width: calc(100% - 20px);
+	height: calc(100vh - 100px);
+	overflow: auto;
+	margin: 10px;
+}
+
+table {
+	border-left: 1px solid black;
+	border-top: 1px solid black;
+}
+
+th {
+	text-transform: capitalize;
+}
+
+table tr th, table tr td {
+	border-right: 1px solid black;
+	border-bottom: 1px solid black;
+}
+
+td div {
+	height: 50px;
+	overflow: auto;
+	max-width: 300px;
+}

@@ -1,0 +1,74 @@
+<!DOCTYPE html>
+<html lang="">
+
+<head>
+	<meta charset="utf-8">
+	<meta http-equiv="X-UA-Compatible" content="IE=edge">
+	<meta name="viewport" content="width=device-width,initial-scale=1.0">
+	<title>
+		GSheet Tool
+	</title>
+
+	<script src="./js/jquery-3.6.0.min.js"></script>
+	
+	<!-- CSS -->
+	<link rel="stylesheet" href="./css/style.css?2">
+</head>
+
+<body>
+	<div class="input-area">
+		<label for="pdl_api_key">PDL API KEY: </label>
+		<input type="text" id="pdl_api_key" value="60fbfebedcbccffe237f0509aef2f8b656e7e47ad4bcc05e3aca0afbcd1fa5a4" />
+
+		<div style="clear: both; height: 10px;"></div>
+
+		<label for="gsheet_id">SpreadSheet ID: </label>
+		<input type="text" id="gsheet_id" value="1q6a_Fo4wkVUl8RmQ5VaRaYQEg11PIp5G4_2TL2_C2rs" />
+		<input type="button" id="btnLoad" value="Load" onclick="javascript: onBtnLoadClick()" disabled />
+		<input type="button" id="btnPopulate" value="Populate"onclick="javascript: onBtnPopulateClick()" disabled />
+
+		<div style="clear: both; height: 10px;"></div>
+
+		<label for="sheet_name">Sheet Name:</label>
+		<input type="text" id="sheet_name" value="data" />
+		<label for="column_range_start">Column Range:</label>
+		<input type="text" id="column_range_start" value="A" />
+		<label for="column_range_end">-</label>
+		<input type="text" id="column_range_end" value="G" />
+		<label for="first_row">First Row:</label>
+		<input type="text" id="first_row" value="2" />
+
+		<div style="clear: both; height: 10px"></div>
+
+		<input type="checkbox" id="valid_mobile" />
+		<label for="valid_mobile">Valid "Mobile Number" record</label>
+
+		<div style="clear: both; height: 5px"></div>
+
+		<input type="checkbox" id="valid_email" />
+		<label for="valid_email">Valid "Email" record</label>
+	</div>
+	<div class="content">
+		<table cellpadding="5" cellspacing="0">
+			<thead>
+				<tr>
+					<th width="50px"></th>
+					<th>First Name</th>
+					<th>Last Name</th>
+					<th>Title</th>
+					<th>Company Name</th>
+					<th>Person Linkedin Url</th>
+					<th>Email</th>
+					<th>Website</th>
+					<th data-prop="mobile_phone">Mobile Phone</th>
+				</tr>
+			</thead>
+			<tbody>
+			</tbody>
+		</table>
+	</div>
+</body>
+<script type="text/javascript" src="./js/main.js?2"></script>
+<script async defer src="https://apis.google.com/js/api.js" onload="gapiLoaded()"></script>
+<script async defer src="https://accounts.google.com/gsi/client" onload="gisLoaded()"></script>
+</html>
