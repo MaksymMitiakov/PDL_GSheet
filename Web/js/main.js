@@ -12,6 +12,10 @@ let tokenClient;
 let gapiInited = false;
 let gisInited = false;
 
+function timeout(ms) {
+	return new Promise((resolve) => setTimeout(resolve, ms));
+}
+
 $(document).ready(function () {
 });
 
@@ -79,7 +83,7 @@ async function loadContent() {
 			range: $("#sheet_name").val() + '!' + $("#column_range_start").val() + $("#first_row").val() + ':' + $("#column_range_end").val(),
 		});
 	} catch (err) {
-		alert(err.message);
+		alert(err.result.error.message);
 		console.log(err);
 		return;
 	}
@@ -138,106 +142,204 @@ function onBtnPopulateClick() {
 
 	var request = gapi.client.sheets.spreadsheets.values.append(params, valueRangeBody);
 	request.then(async function(response) {
-		// TODO: Change code below to process the `response` object:
-		//console.log(response.result);
-
 		let header = $("table thead tr");
 		let bHeaderWritten = false;
-		for(let i = 0; i < $("table tbody tr").length; i++) {
-			let row = $("table tbody tr")[i];
-			row.children[0].innerHTML = 'Reading';
-			
-			//	Get Parameters
-			let linkedin_url = row.children[5].innerHTML;
-			if(linkedin_url == '&nbsp;')	linkedin_url = '';
-			let email = row.children[6].innerHTML;
-			if(email == '&nbsp;')	email = '';
-			let cond = '', tmpKey = '';
-			if(linkedin_url == '' || linkedin_url.indexOf('/in/') < 0) {
-				cond = 'email=' + email;
-				tmpKey = email;
-			}
-			else {
-				cond = 'profile=linkedin.com/in/' + linkedin_url.substring(linkedin_url.indexOf('/in/') + 4);
-				tmpKey = linkedin_url.substring(linkedin_url.indexOf('/in/') + 4);
-			}
+		var requests = [];
+		var required = '';
+		if($("#valid_mobile").is(":checked") && $("#valid_email").is(":checked")) {
+			required = 'emails AND mobile_phone';
+		}
+		else if($("#valid_mobile").is(":checked")) {
+			required = 'mobile_phone';
+		}
+		else {
+			required = 'emails';
+		}
+		var cur = 0;
+		var credits = 0;
 
-			//	Check LocalStorage
-			let res = '';
-			res = localStorage.getItem(tmpKey);
+		let process = async function(tmpKey, json) {
+			try {
+				//	We can store only up to 512 peoples in local storage.
+				localStorage.setItem(tmpKey, JSON.stringify(json));
+			} catch(e) {}
 
-			let process = function(key, index, json) {
-				localStorage.setItem(key, JSON.stringify(json));
-
-				if(!bHeaderWritten) {
-					values = ['Mobile Phone'];
-					for(var key in json) {
-						if(key == 'mobile_phone')
-							continue;
-						$('table thead tr').append($('<th>').attr('data-prop', key).html(key));
-						$('table tbody tr').append($('<td>').attr('data-prop', key));
-
-						values.push(key);
-					}
-
-					updateSpreadSheetValues($("#gsheet_id").val(), $("#sheet_name").val(), "H1:DZ", values);
-
-					bHeaderWritten = true;
-				}
-
-				let row = $("table tbody tr")[index];
-				row.children[0].innerHTML = 'Loaded';
-				values = [json['mobile_phone']];
+			if(!bHeaderWritten) {
 				for(var key in json) {
-					let content = '';
-					if(json[key]) {
-						if(typeof(json[key]) == 'object')
-							content = JSON.stringify(json[key]);
-						else
-							content = json[key].toString();
-					}
-					$(row).find(`td[data-prop="${key}"]`).html('<div>' + content + '</div>');
-					
 					if(key == 'mobile_phone')
 						continue;
-					values.push(content);
+					$('table thead tr').append($('<th>').attr('data-prop', key).html(key));
+					$('table tbody tr').append($('<td>').attr('data-prop', key));
 				}
-
-				//	Update Values on the Google Sheet
-				updateSpreadSheetValues($("#gsheet_id").val(), $("#sheet_name").val(), "H" + (index + 2) + ":DZ", values);
+				bHeaderWritten = true;
 			}
 
-			if(res == null || res == '') {
-				var required = '';
-				if($("#valid_mobile").is(":checked") && $("#valid_email").is(":checked")) {
-					required = 'required=mobile_phone AND emails';
+			let row = $("table tbody tr[data-key='" + tmpKey + "']")[0];
+			row.children[0].innerHTML = 'Loaded';
+			for(var key in json) {
+				let content = '';
+				if(json[key]) {
+					if(typeof(json[key]) == 'object')
+						content = JSON.stringify(json[key]);
+					else
+						content = json[key].toString();
 				}
-				else if($("#valid_mobile").is(":checked")) {
-					required = 'required=mobile_phone';
-				}
-				else {
-					required = 'required=emails';
-				}
-				//	Read from PDL API
-				$.ajax({
-					url: `https://api.peopledatalabs.com/v5/person/enrich?api_key=${$("#pdl_api_key").val()}&pretty=False&${required}&${cond}`
-					, success: function(res) {
-						if(res.status == '200') {
-							process(tmpKey, i, res.data);
-						}
-						else {
-							$("table tbody tr")[i].children[0].innerHTML = 'Not Found';
-						}
-					}
-				});
-			}
-			else {
-				process(tmpKey, i, JSON.parse(res));
+				$(row).find(`td[data-prop="${key}"]`).html('<div>' + content + '</div>');
+				
+				if(key == 'mobile_phone')
+					continue;
 			}
 		}
+		
+		var next = function() {
+			if(credits > 4)
+				return;
+
+			for(var i = 0; i + cur < $("table tbody tr").length; i++) {
+				let row = $("table tbody tr")[i + cur];
+				row.children[0].innerHTML = 'Reading';
+				
+				//	Get Parameters
+				let linkedin_url = row.children[5].innerHTML;
+				if(linkedin_url == '&nbsp;')	linkedin_url = '';
+				let email = row.children[6].innerHTML;
+				if(email == '&nbsp;')	email = '';
+				let tmpKey = '';
+				if(linkedin_url == '' || linkedin_url.indexOf('/in/') < 0) {
+					tmpKey = email;
+				}
+				else {
+					tmpKey = linkedin_url.substring(linkedin_url.indexOf('/in/') + 4);
+				}
+				row.setAttribute('data-key', tmpKey);
+
+				//	Check LocalStorage
+				let res = '';
+				res = localStorage.getItem(tmpKey);
+
+				if(res == null || res == '') {
+					if(linkedin_url == '' || linkedin_url.indexOf('/in/') < 0) {
+						requests.push({
+							params: {
+								email: email
+							}
+						});
+					}
+					else {
+						requests.push({
+							params: {
+								profile: 'linkedin.com/in/' + linkedin_url.substring(linkedin_url.indexOf('/in/') + 4)
+							}
+						});
+					}
+					
+					if(requests.length >= 100) {
+						//	Read from PDL API
+						$.ajax({
+							url: `https://api.peopledatalabs.com/v5/person/bulk`
+							, headers: { "x-api-key": $("#pdl_api_key").val() }
+							, type: 'POST'
+							, dataType: 'json'
+							, contentType: 'application/json'
+							, data: JSON.stringify({
+								required: required,
+								requests: requests
+							})
+							, success: function(res) {
+								for(var j = 0; j < res.length; j++) {
+									var key = requests[j].params.email || requests[j].params.profile.substr(requests[j].params.profile.indexOf('/in/') + 4);
+									if(res[j].status == '200') {
+										process(key, res[j].data);
+										credits++;
+									}
+									else {
+										let row = $("table tbody tr[data-key='" + key + "']")[0];
+										row.children[0].innerHTML = 'Not Found';
+									}
+								}
+								cur += i;
+								requests = [];
+								next();
+							}
+							, error: async function(err) {
+								console.log(err);
+							}
+						});
+						break;
+					}
+				}
+				else {
+					process(tmpKey, JSON.parse(res));
+				}
+			}
+
+			if(i + cur == $("table tbody tr").length || credits > 4) {
+				if(requests.length > 0) {
+					//	Read from PDL API
+					$.ajax({
+						url: `https://api.peopledatalabs.com/v5/person/bulk`
+						, headers: { "x-api-key": $("#pdl_api_key").val() }
+						, type: 'POST'
+						, dataType: 'json'
+						, contentType: 'application/json'
+						, data: JSON.stringify({
+							required: required,
+							requests: requests
+						})
+						, success: function(res) {
+							for(var j = 0; j < res.length; j++) {
+								var key = requests[j].params.email || requests[j].params.profile.substr(requests[j].params.profile.indexOf('/in/') + 4);
+								if(res[j].status == '200') {
+									process(key, res[j].data);
+								}
+								else {
+									let row = $("table tbody tr[data-key='" + key + "']")[0];
+									row.children[0].innerHTML = 'Not Found';
+								}
+							}
+							bulkUpdateGSheet();
+						}
+						, error: async function(err) {
+							console.log(err);
+						}
+					});
+				}
+				else {
+					bulkUpdateGSheet();
+				}
+			}
+		}
+		next();
 	}, function(reason) {
 		console.error('error: ' + reason.result.error.message);
 	});
+}
+
+function bulkUpdateGSheet() {
+	var valuesArray = [];
+	var ths = $("table thead tr th");
+	var keys = [];
+	var values = [];
+	var i, j;
+	for(var i = 8; i < ths.length; i++) {
+		keys.push(ths[i].getAttribute("data-prop"));
+		values.push(ths[i].getAttribute("data-prop"));
+	}
+	valuesArray.push(values);
+
+	for(i = 0; i < $("table tbody tr").length; i++) {
+		let row = $("table tbody tr")[i];
+		values = [];
+		for(j = 0; j < keys.length; j++) {
+			var key = keys[j];
+			var value = $(row).find(`td[data-prop="${key}"] div`).html();
+			values.push(value);
+		}
+		valuesArray.push(values);
+	}
+
+	//	Update Values on the Google Sheet
+	updateSpreadSheetValues($("#gsheet_id").val(), $("#sheet_name").val(), "H1:DZ" + (i + 1), valuesArray);
 }
 
 function updateSpreadSheetValues(sheet_id, sheet_name, range, values) {
@@ -255,9 +357,7 @@ function updateSpreadSheetValues(sheet_id, sheet_name, range, values) {
 			{
 				"majorDimension": "DIMENSION_UNSPECIFIED",
 				"range": sheet_name + '!' + range,
-				"values": [
-					values
-				]
+				"values": values
 			}
 		],
 	};
